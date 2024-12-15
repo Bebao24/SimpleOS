@@ -23,6 +23,7 @@ GOP_Framebuffer_t* InitializeGOP()
 	if (EFI_ERROR(status))
 	{
 		Print(L"Failed to locate GOP!\r\n");
+		return NULL;
 	}
 	else
 	{
@@ -66,6 +67,59 @@ EFI_FILE* LoadFile(EFI_FILE* Directory, CHAR16* FileName, EFI_HANDLE ImageHandle
 	return LoadedFile;
 }
 
+#define PSF1_MAGIC_0 0x36
+#define PSF1_MAGIC_1 0x04
+
+typedef struct
+{
+	unsigned char magic[2];
+	unsigned char mode;
+	unsigned char charSize;
+} PSF1_HEADER;
+
+typedef struct
+{
+	PSF1_HEADER* fontHeader;
+	void* glyphBuffer;
+} PSF1_FONT;
+
+PSF1_FONT* LoadFont(EFI_FILE* Directory, CHAR16* FileName, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
+{
+	EFI_FILE* font = LoadFile(Directory, FileName, ImageHandle, SystemTable);
+	if (font == NULL) return NULL;
+
+	PSF1_HEADER* fontHeader;
+	SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(PSF1_HEADER), (void**)&fontHeader);
+	UINTN size = sizeof(PSF1_HEADER);
+	font->Read(font, &size, fontHeader); // Read the fontt header
+
+	// Verify font
+	if (fontHeader->magic[0] != PSF1_MAGIC_0 || fontHeader->magic[1] != PSF1_MAGIC_1)
+	{
+		return NULL;
+	}
+
+	UINTN glyphBufferSize = fontHeader->charSize * 256;
+	if (fontHeader->mode == 1)
+	{
+		glyphBufferSize = fontHeader->charSize * 512;
+	}
+
+	// Read the glyph buffer
+	void* glyphBuffer;
+	{
+		font->SetPosition(font, sizeof(PSF1_HEADER));
+		SystemTable->BootServices->AllocatePool(EfiLoaderData, glyphBufferSize, (void**)&glyphBuffer);
+		font->Read(font, &glyphBufferSize, glyphBuffer);
+	}
+
+	PSF1_FONT* finishedFont;
+	SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(PSF1_FONT), (void**)&finishedFont);
+	finishedFont->fontHeader = fontHeader;
+	finishedFont->glyphBuffer = glyphBuffer;
+	return finishedFont;
+}
+
 int memcmp(const void* aptr, const void* bptr, size_t n){
 	const unsigned char* a = aptr, *b = bptr;
 	for (size_t i = 0; i < n; i++){
@@ -78,12 +132,29 @@ int memcmp(const void* aptr, const void* bptr, size_t n){
 typedef struct
 {
     GOP_Framebuffer_t* fb;
+	PSF1_FONT* font;
 } BootInfo;
 
 EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	InitializeLib(ImageHandle, SystemTable);
 
 	GOP_Framebuffer_t* newBuffer = InitializeGOP();
+	if (newBuffer == NULL)
+	{
+		return EFI_NOT_FOUND;
+	}
+
+	PSF1_FONT* newFont = LoadFont(NULL, L"default.psf", ImageHandle, SystemTable);
+
+	if (newFont == NULL)
+	{
+		Print(L"Failed to load PSF font!\r\n");
+		return EFI_INVALID_PARAMETER;
+	}
+	else
+	{
+		Print(L"PSF font loaded successfully! char size = %d\r\n", newFont->fontHeader->charSize);
+	}
 
 	EFI_FILE* kernel = LoadFile(NULL, L"kernel.bin", ImageHandle, SystemTable);
 
@@ -163,6 +234,7 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
 	BootInfo bootInfo;
 	bootInfo.fb = newBuffer;
+	bootInfo.font = newFont;
 	KernelStart(&bootInfo);
 
 	return EFI_SUCCESS;
