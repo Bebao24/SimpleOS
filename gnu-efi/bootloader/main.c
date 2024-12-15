@@ -3,6 +3,41 @@
 #include <elf.h>
 #include <stddef.h>
 
+typedef struct
+{
+	void* BaseAddress;
+	size_t BufferSize;
+	unsigned int width;
+	unsigned int height;
+	unsigned int PixelsPerScanLine;
+} GOP_Framebuffer_t;
+
+GOP_Framebuffer_t fb;
+GOP_Framebuffer_t* InitializeGOP()
+{
+	EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
+	EFI_STATUS status;
+
+	status = uefi_call_wrapper(BS->LocateProtocol, 3, &gopGuid, NULL, (void**)&gop);
+	if (EFI_ERROR(status))
+	{
+		Print(L"Failed to locate GOP!\r\n");
+	}
+	else
+	{
+		Print(L"GOP located!\r\n");
+	}
+
+	fb.BaseAddress = (void*)gop->Mode->FrameBufferBase;
+	fb.BufferSize = gop->Mode->FrameBufferSize;
+	fb.width = gop->Mode->Info->HorizontalResolution;
+	fb.height = gop->Mode->Info->VerticalResolution;
+	fb.PixelsPerScanLine = gop->Mode->Info->PixelsPerScanLine;
+
+	return &fb;
+}
+
 EFI_FILE* LoadFile(EFI_FILE* Directory, CHAR16* FileName, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 {
 	EFI_STATUS status;
@@ -42,6 +77,8 @@ int memcmp(const void* aptr, const void* bptr, size_t n){
 
 EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	InitializeLib(ImageHandle, SystemTable);
+
+	GOP_Framebuffer_t* newBuffer = InitializeGOP();
 
 	EFI_FILE* kernel = LoadFile(NULL, L"kernel.bin", ImageHandle, SystemTable);
 
@@ -115,6 +152,13 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	}
 
 	Print(L"Kernel loaded!\r\n");
+
+	unsigned int y = 50;
+	unsigned int BPP = 4;
+	for (unsigned int x = 0; x < newBuffer->width * BPP / 2; x += BPP)
+	{
+		*(unsigned int*)(x + (y * newBuffer->PixelsPerScanLine * BPP) + newBuffer->BaseAddress) = 0xFFFFFFFF;
+	}
 
 	// Calling kernel entry point
 	int (*KernelStart)() = ((__attribute__((sysv_abi)) int (*)()) header.e_entry);
