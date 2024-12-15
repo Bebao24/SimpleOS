@@ -11,6 +11,7 @@ $(BUILD_DIR)/image.hdd: bootloader kernel
 	mmd -i $@ ::/EFI ::/EFI/BOOT
 	mcopy -i $@ $(GNU_EFI)/x86_64/bootloader/main.efi ::/EFI/BOOT
 	mcopy -i $@ $(BUILD_DIR)/kernel/kernel.bin ::
+	mcopy -i $@ build/startup.nsh ::
 
 bootloader: $(GNU_EFI)/x86_64/bootloader/main.efi
 $(GNU_EFI)/x86_64/bootloader/main.efi: always
