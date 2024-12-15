@@ -75,6 +75,11 @@ int memcmp(const void* aptr, const void* bptr, size_t n){
 	return 0;
 }
 
+typedef struct
+{
+    GOP_Framebuffer_t* fb;
+} BootInfo;
+
 EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	InitializeLib(ImageHandle, SystemTable);
 
@@ -153,17 +158,12 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
 	Print(L"Kernel loaded!\r\n");
 
-	unsigned int y = 50;
-	unsigned int BPP = 4;
-	for (unsigned int x = 0; x < newBuffer->width * BPP / 2; x += BPP)
-	{
-		*(unsigned int*)(x + (y * newBuffer->PixelsPerScanLine * BPP) + newBuffer->BaseAddress) = 0xFFFFFFFF;
-	}
-
 	// Calling kernel entry point
-	int (*KernelStart)() = ((__attribute__((sysv_abi)) int (*)()) header.e_entry);
+	void (*KernelStart)(BootInfo*) = ((__attribute__((sysv_abi)) void (*)(BootInfo*)) header.e_entry);
 
-	Print(L"Return code: %d\r\n", KernelStart());
+	BootInfo bootInfo;
+	bootInfo.fb = newBuffer;
+	KernelStart(&bootInfo);
 
 	return EFI_SUCCESS;
 }

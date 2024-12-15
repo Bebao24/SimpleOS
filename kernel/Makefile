@@ -1,6 +1,8 @@
 TARGET_CFLAGS += -ffreestanding -fshort-wchar
 TARGET_LINKFLAGS += -T linker.ld -static -Bsymbolic -nostdlib
 
+TARGET_CFLAGS += -I lib -I lib/boot
+
 C_SOURCES := $(shell find src -name "*.c")
 C_OBJECTS := $(patsubst src/%.c, $(BUILD_DIR)/kernel/x86_64/%.o, $(C_SOURCES))
 
