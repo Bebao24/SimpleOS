@@ -2,8 +2,11 @@
 #include <stdint.h>
 #include <framebuffer.h>
 #include <console.h>
-#include <bitmap.h>
 #include <memory.h>
+#include <pmm.h>
+
+extern uint64_t _KernelStart;
+extern uint64_t _KernelEnd;
 
 void kmain(BootInfo* bootInfo)
 {
@@ -13,23 +16,19 @@ void kmain(BootInfo* bootInfo)
 
     uint64_t mMapEntries = bootInfo->mMapSize / bootInfo->mDescriptorSize;
 
-    uint8_t testBuffer[20];
-    memset(testBuffer, 0, sizeof(testBuffer));
+    InitializePMM(bootInfo->mMap, bootInfo->mMapSize, bootInfo->mDescriptorSize);
 
-    Bitmap testBitmap;
-    testBitmap.bitmapBuffer = &testBuffer[0];
-    Bitmap_Set(&testBitmap, 1, true);
-    Bitmap_Set(&testBitmap, 3, true);
-    Bitmap_Set(&testBitmap, 5, true);
-    Bitmap_Set(&testBitmap, 8, true);
-    Bitmap_Set(&testBitmap, 11, true);
-    Bitmap_Set(&testBitmap, 12, true);
+    uint64_t kernelSize = (uint64_t)&_KernelEnd - (uint64_t)&_KernelStart;
+    uint64_t kernelPages = (uint64_t)kernelSize / 0x1000 + 1;
+    pmm_LockPages(&_KernelStart, kernelPages);
 
-    for (int i = 0; i < 15; i++)
+    for (int i = 0; i < 20; i++)
     {
-        printf(Bitmap_Get(&testBitmap, i) ? "true" : "false");
-        putc('\n');
+        void* addr = pmm_AllocatePage();
+        printf("Address: 0x%llx\n", (uint64_t)addr);
     }
+
+    printf("Hello World!\n");
 
     for (;;)
     {
