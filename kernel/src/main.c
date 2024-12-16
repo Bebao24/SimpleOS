@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <framebuffer.h>
 #include <console.h>
+#include <memory.h>
 
 void kmain(BootInfo* bootInfo)
 {
@@ -9,8 +10,8 @@ void kmain(BootInfo* bootInfo)
     InitializeConsole();
     clearScreen();
 
-    printf("Hello World from printf!!!!\n");
-    printf("Testing: 0x%x\n", 0x123);
+    uint64_t mMapEntries = bootInfo->mMapSize / bootInfo->mDescriptorSize;
+    printf("Total memory: %llu KB\n", GetMemorySize(bootInfo->mMap, mMapEntries, bootInfo->mDescriptorSize) / 1024);
 
     for (;;)
     {

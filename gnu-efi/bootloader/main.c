@@ -133,6 +133,9 @@ typedef struct
 {
     GOP_Framebuffer_t* fb;
 	PSF1_FONT* font;
+	EFI_MEMORY_DESCRIPTOR* mMap;
+	UINTN mMapSize;
+	UINTN mDescriptorSize;
 } BootInfo;
 
 EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
@@ -229,12 +232,27 @@ EFI_STATUS efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
 	Print(L"Kernel loaded!\r\n");
 
+	EFI_MEMORY_DESCRIPTOR* map = NULL;
+	UINTN MapSize, MapKey;
+	UINTN DescriptorSize;
+	UINT32 DescriptorVersion;
+	{
+		SystemTable->BootServices->GetMemoryMap(&MapSize, map, &MapKey, &DescriptorSize, &DescriptorVersion);
+		SystemTable->BootServices->AllocatePool(EfiLoaderData, MapSize, (void**)&map);
+		SystemTable->BootServices->GetMemoryMap(&MapSize, map, &MapKey, &DescriptorSize, &DescriptorVersion);
+	}
+
 	// Calling kernel entry point
 	void (*KernelStart)(BootInfo*) = ((__attribute__((sysv_abi)) void (*)(BootInfo*)) header.e_entry);
 
 	BootInfo bootInfo;
 	bootInfo.fb = newBuffer;
 	bootInfo.font = newFont;
+	bootInfo.mMap = map;
+	bootInfo.mMapSize = MapSize;
+	bootInfo.mDescriptorSize = DescriptorSize;
+
+	SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
 	KernelStart(&bootInfo);
 
 	return EFI_SUCCESS;

@@ -24,7 +24,7 @@ $(BUILD_DIR)/kernel/kernel.bin: always
 	@ $(MAKE) -C kernel BUILD_DIR=$(abspath $(BUILD_DIR))
 
 run:
-	qemu-system-x86_64 -machine q35 \
+	qemu-system-x86_64 \
 	-drive file=$(BUILD_DIR)/image.hdd -m 256M -cpu qemu64 \
 	-drive if=pflash,format=raw,unit=0,file="OVMFbin/OVMF_CODE-pure-efi.fd",readonly=on \
 	-drive if=pflash,format=raw,unit=1,file="OVMFbin/OVMF_VARS-pure-efi.fd" -net none
