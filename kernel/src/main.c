@@ -5,9 +5,12 @@
 #include <memory.h>
 #include <pmm.h>
 #include <paging.h>
+#include <heap.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
+
+#define HEAP_ADDRESS ((void*)0x0000100000000000)
 
 void kmain(BootInfo* bootInfo)
 {
@@ -44,12 +47,16 @@ void kmain(BootInfo* bootInfo)
     // Pass the new page table to the CPU
     asm volatile("mov %0, %%cr3" : : "r"(PML4));
 
-    printf("Hello World!\n");
+    InitializeHeap(HEAP_ADDRESS, 0x10);
 
-    paging_MapMemory((void*)0x600000000, (void*)0x80000);
-    uint64_t* test = 0x600000000;
-    *test = 69;
-    printf("test: %d\n", *test);
+    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
+    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
+    void* address = malloc(0x100);
+    printf("malloc address: 0x%llx\n", (uint64_t)address);
+    free(address);
+    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
+
+    printf("Hello World!\n");
 
     for (;;)
     {
