@@ -49,12 +49,11 @@ void kmain(BootInfo* bootInfo)
 
     InitializeHeap(HEAP_ADDRESS, 0x10);
 
-    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
-    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
-    void* address = malloc(0x100);
-    printf("malloc address: 0x%llx\n", (uint64_t)address);
-    free(address);
-    printf("malloc address: 0x%llx\n", (uint64_t)malloc(0x100));
+    for (int i = 0; i < 20; i++)
+    {
+        void* addr = pmm_AllocatePage();
+        printf("Address: 0x%llx\n", (uint64_t)addr);
+    }
 
     printf("Hello World!\n");
 
