@@ -6,6 +6,7 @@
 #include <pmm.h>
 #include <paging.h>
 #include <heap.h>
+#include <gdt.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -49,11 +50,7 @@ void kmain(BootInfo* bootInfo)
 
     InitializeHeap(HEAP_ADDRESS, 0x10);
 
-    for (int i = 0; i < 20; i++)
-    {
-        void* addr = pmm_AllocatePage();
-        printf("Address: 0x%llx\n", (uint64_t)addr);
-    }
+    InitializeGDT();
 
     printf("Hello World!\n");
 
