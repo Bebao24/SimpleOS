@@ -7,6 +7,7 @@
 #include <paging.h>
 #include <heap.h>
 #include <gdt.h>
+#include <idt.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -51,6 +52,7 @@ void kmain(BootInfo* bootInfo)
     InitializeHeap(HEAP_ADDRESS, 0x10);
 
     InitializeGDT();
+    InitializeIDT();
 
     printf("Hello World!\n");
 
