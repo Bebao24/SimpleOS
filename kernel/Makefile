@@ -1,4 +1,4 @@
-TARGET_CFLAGS += -ffreestanding -fshort-wchar
+TARGET_CFLAGS += -ffreestanding -fshort-wchar -mno-red-zone
 TARGET_LINKFLAGS += -T linker.ld -static -Bsymbolic -nostdlib
 TARGET_ASMFLAGS += -f elf64
 

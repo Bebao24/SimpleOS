@@ -8,6 +8,7 @@
 #include <heap.h>
 #include <gdt.h>
 #include <idt.h>
+#include <isr.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -53,6 +54,11 @@ void kmain(BootInfo* bootInfo)
 
     InitializeGDT();
     InitializeIDT();
+    InitializeISR();
+
+    // Should cause a page fault
+    int* test = (int*)0x80000000000;
+    *test = 2;
 
     printf("Hello World!\n");
 
