@@ -21,9 +21,9 @@ isr%1:
     push rbx
     push rcx
     push rdx
-    push rbp
     push rsi
     push rdi
+    push rbp
     push r8
     push r9
     push r10
@@ -55,11 +55,9 @@ isr%1:
 isr_common:
     save_context
     mov rdi, rsp
-    cld
     call interrupt_handler
-    mov rsp, rax
     restore_context
-    add rsp, 16
+    add rsp, 16 ; Discard the interrupt number and the error code
     iretq
 
 ; Just all ISRs that we might use...
@@ -97,11 +95,33 @@ ISR_NO_ERROR_CODE 29
 ISR_ERROR_CODE 30
 ISR_NO_ERROR_CODE 31
 
+; IRQs 0 - 15 are mapped to 32 - 47
+ISR_NO_ERROR_CODE 32 ; PIT
+ISR_NO_ERROR_CODE 33
+ISR_NO_ERROR_CODE 34
+ISR_NO_ERROR_CODE 35
+ISR_NO_ERROR_CODE 36
+ISR_NO_ERROR_CODE 37
+ISR_NO_ERROR_CODE 38
+ISR_NO_ERROR_CODE 39
+ISR_NO_ERROR_CODE 40
+ISR_NO_ERROR_CODE 41
+ISR_NO_ERROR_CODE 42
+ISR_NO_ERROR_CODE 43
+ISR_NO_ERROR_CODE 44
+ISR_NO_ERROR_CODE 45
+ISR_NO_ERROR_CODE 46
+ISR_NO_ERROR_CODE 47
+
+; syscall 0x80
+ISR_NO_ERROR_CODE 128
+global isr128
+
 section .data
 global isr_stub_table
 isr_stub_table:
 %assign i 0
-%rep 32
+%rep 48
   dq isr%+i
 %assign i i+1
 %endrep

@@ -43,14 +43,10 @@ static const char* const g_Exceptions[] = {
 
 void InitializeISR()
 {
-    // TODO: Remap PIC
-
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < 48; i++)
     {
         IDTSetGate(i, (uint64_t)isr_stub_table[i], IDT_TA_InterruptGate);
     }
-
-    asm volatile("sti");
 }
 
 void ISR_RegisterHandler(int interrupt, ISRHandler handler)

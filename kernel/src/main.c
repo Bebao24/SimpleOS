@@ -9,6 +9,9 @@
 #include <gdt.h>
 #include <idt.h>
 #include <isr.h>
+#include <irq.h>
+#include <pic.h>
+#include <system.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -55,10 +58,10 @@ void kmain(BootInfo* bootInfo)
     InitializeGDT();
     InitializeIDT();
     InitializeISR();
+    InitializeIRQ();
 
-    // Should cause a page fault
-    int* test = (int*)0x80000000000;
-    *test = 2;
+    PIC_Unmask(1);
+    PIC_Unmask(0);
 
     printf("Hello World!\n");
 
