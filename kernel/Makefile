@@ -2,7 +2,8 @@ TARGET_CFLAGS += -ffreestanding -fshort-wchar -mno-red-zone
 TARGET_LINKFLAGS += -T linker.ld -static -Bsymbolic -nostdlib
 TARGET_ASMFLAGS += -f elf64
 
-TARGET_CFLAGS += -I lib -I lib/boot -I src -I src/graphics -I src/memory -I src/arch/x86_64/ -I src/arch/x86_64/cpu
+TARGET_CFLAGS += -I lib -I lib/boot -I src -I src/graphics -I src/memory -I src/arch/x86_64/ -I src/arch/x86_64/cpu \
+				 -I src/drivers -I src/drivers/keyboard
 
 C_SOURCES := $(shell find src -name "*.c")
 C_OBJECTS := $(patsubst src/%.c, $(BUILD_DIR)/kernel/x86_64/%.o, $(C_SOURCES))

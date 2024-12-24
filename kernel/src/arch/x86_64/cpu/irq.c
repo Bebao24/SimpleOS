@@ -39,4 +39,7 @@ void InitializeIRQ()
     asm volatile("sti");
 }
 
-void IRQ_RegisterHandler(int irq, IRQHandler handler);
+void IRQ_RegisterHandler(int irq, IRQHandler handler)
+{
+    g_IRQHandlers[irq] = handler;
+}

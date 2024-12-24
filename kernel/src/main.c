@@ -12,6 +12,7 @@
 #include <irq.h>
 #include <pic.h>
 #include <system.h>
+#include <keyboard.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -60,10 +61,23 @@ void kmain(BootInfo* bootInfo)
     InitializeISR();
     InitializeIRQ();
 
-    PIC_Unmask(1);
-    PIC_Unmask(0);
+    PIC_Mask(0);
+    InitializeKeyboard();
 
     printf("Hello World!\n");
+
+    while (true)
+    {
+        char key = getKey();
+
+        if (key == '\r')
+        {
+            putc('\n');
+            continue;
+        }
+
+        putc(key);
+    }
 
     for (;;)
     {

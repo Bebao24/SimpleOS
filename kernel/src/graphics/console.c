@@ -35,6 +35,16 @@ void putc(char c)
                 putc(' ');
             }
             break;
+        case '\b':
+            if (g_ScreenY > 0 && g_ScreenX <= 0)
+            {
+                g_ScreenX = fb_Width;
+                g_ScreenY -= CHAR_HEIGHT;
+            }
+
+            g_ScreenX -= CHAR_WIDTH;
+            fb_drawRect(g_ScreenX, g_ScreenY, CHAR_WIDTH, CHAR_HEIGHT, BACKGROUND_COLOR);
+            break;
         default:
             fb_putChar(g_ScreenX, g_ScreenY, c, FOREGROUND_COLOR);
             g_ScreenX += CHAR_WIDTH;

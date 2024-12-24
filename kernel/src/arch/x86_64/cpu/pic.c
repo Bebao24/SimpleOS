@@ -31,12 +31,6 @@ enum
 
 void PIC_Configure(uint8_t offsetPIC1, uint8_t offsetPIC2)
 {
-    uint8_t a1, a2;
-    a1 = x64_inb(PIC1_DATA_PORT);
-    x64_iowait();
-    a2 = x64_inb(PIC2_DATA_PORT);
-    x64_iowait();
-
     // Initialize word control 1
     x64_outb(PIC1_COMMAND_PORT, PIC_ICW1_INITIALIZE | PIC_ICW1_ICW4);
     x64_iowait();
@@ -61,9 +55,10 @@ void PIC_Configure(uint8_t offsetPIC1, uint8_t offsetPIC2)
     x64_outb(PIC2_DATA_PORT, PIC_ICW4_8086);
     x64_iowait();
 
-    x64_outb(PIC1_DATA_PORT, a1);
+    // Unmasking all IRQs
+    x64_outb(PIC1_DATA_PORT, 0x00);
     x64_iowait();
-    x64_outb(PIC2_DATA_PORT, a2);
+    x64_outb(PIC2_DATA_PORT, 0x00);
     x64_iowait();
 }
 
