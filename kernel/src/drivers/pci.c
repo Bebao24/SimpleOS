@@ -37,6 +37,10 @@ int PCICheckDevice(uint8_t bus, uint8_t slot, uint8_t function)
 
 void PCIGetDevice(PCIDevice* deviceOut, uint8_t bus, uint8_t slot, uint8_t function)
 {
+    deviceOut->bus = bus;
+    deviceOut->slot = slot;
+    deviceOut->function = function;
+
     deviceOut->vendorId = PCIConfigReadWord(bus, slot, function, 0x00);
     deviceOut->deviceId = PCIConfigReadWord(bus, slot, function, 0x02);
 
@@ -59,6 +63,35 @@ void PCIGetDevice(PCIDevice* deviceOut, uint8_t bus, uint8_t slot, uint8_t funct
     uint16_t headerType_BIST = PCIConfigReadWord(bus, slot, function, 0x0e);
     deviceOut->headerType = EXPORT_BYTE(headerType_BIST, true);
     deviceOut->BIST = EXPORT_BYTE(headerType_BIST, false);
+}
+
+void PCIGetGeneralDevice(PCIDevice* device, PCIGeneralDevice* deviceOut)
+{
+    uint8_t bus = device->bus;
+    uint8_t slot = device->slot;
+    uint8_t function = device->function;
+
+    for (int i = 0; i < 6; i++)
+    {
+        deviceOut->bar[i] = COMBINE_WORD(PCIConfigReadWord(bus, slot, function, 0x10 + 4 * i + 2), 
+        PCIConfigReadWord(bus, slot, function, 0x10 + 4 * i));
+    }
+
+    deviceOut->SubsystemVendorId = PCIConfigReadWord(bus, slot, function, 0x2C);
+    deviceOut->SubsystemId = PCIConfigReadWord(bus, slot, function, 0x2E);
+
+    deviceOut->ExpansionROMBaseAddress = COMBINE_WORD(PCIConfigReadWord(bus, slot, function, 0x30 + 2), 
+    PCIConfigReadWord(bus, slot, function, 0x30));
+
+    deviceOut->CapabilitiesPtr = EXPORT_BYTE(PCIConfigReadWord(bus, slot, function, 0x34), true);
+
+    uint16_t interruptLine_interruptPin = PCIConfigReadWord(bus, slot, function, 0x3C);
+    deviceOut->InterruptLine = EXPORT_BYTE(interruptLine_interruptPin, true);
+    deviceOut->InterruptPin = EXPORT_BYTE(interruptLine_interruptPin, false);
+
+    uint16_t minGrant_maxLatency = PCIConfigReadWord(bus, slot, function, 0x3E);
+    deviceOut->MinGrant = EXPORT_BYTE(minGrant_maxLatency, true);
+    deviceOut->MaxLatency = EXPORT_BYTE(minGrant_maxLatency, false);
 }
 
 void InitializePCI()
