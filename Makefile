@@ -25,9 +25,10 @@ $(BUILD_DIR)/kernel/kernel.bin: always
 
 run:
 	qemu-system-x86_64 \
-	-drive file=$(BUILD_DIR)/image.hdd -m 256M -cpu qemu64 \
+	-drive file=$(BUILD_DIR)/image.hdd,format=raw,id=disk,if=none -m 256M -cpu qemu64 \
 	-drive if=pflash,format=raw,unit=0,file="OVMFbin/OVMF_CODE-pure-efi.fd",readonly=on \
-	-drive if=pflash,format=raw,unit=1,file="OVMFbin/OVMF_VARS-pure-efi.fd" -net none
+	-drive if=pflash,format=raw,unit=1,file="OVMFbin/OVMF_VARS-pure-efi.fd" -net none \
+	-device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0
 
 always:
 	@ mkdir -p $(BUILD_DIR)

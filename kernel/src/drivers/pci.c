@@ -4,6 +4,7 @@
 #include <util.h>
 #include <heap.h>
 #include <linked_list.h>
+#include <ahci.h>
 
 PCI* firstPCI;
 
@@ -120,6 +121,21 @@ void InitializePCI()
                 target->deviceId = device->deviceId;
                 target->subclass = device->subclass;
                 target->class = device->class;
+
+                // Initialize PCI devices
+                switch (device->class)
+                {
+                    case 0x01: // Mass storage controller
+                        switch (device->subclass)
+                        {
+                            case 0x06: // Serial ATA
+                                switch (device->progIF)
+                                {
+                                    case 0x01: // AHCI 1.0
+                                        InitializeAHCI(device);
+                                }
+                        }
+                }
             }
         }
     }
