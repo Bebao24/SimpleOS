@@ -13,6 +13,7 @@
 #include <pic.h>
 #include <system.h>
 #include <keyboard.h>
+#include <pci.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -63,6 +64,18 @@ void kmain(BootInfo* bootInfo)
 
     PIC_Mask(0);
     InitializeKeyboard();
+
+    InitializePCI();
+
+    // Print device info
+    PCI* browse = firstPCI;
+    while (browse)
+    {
+        printf("Vendor Id: %x  Device Id: %x  Subclass: %x  Class: %x\n", 
+        browse->vendorId, browse->deviceId, browse->subclass, browse->class);
+
+        browse = browse->next;
+    }
 
     printf("Hello World!\n");
 
