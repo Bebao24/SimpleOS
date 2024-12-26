@@ -3,6 +3,7 @@
 #include <heap.h>
 #include <memory.h>
 #include <paging.h>
+#include <pmm.h>
 
 #define	SATA_SIG_ATA	0x00000101	// SATA drive
 #define	SATA_SIG_ATAPI	0xEB140101	// SATAPI drive
@@ -11,6 +12,11 @@
 
 #define HBA_PORT_IPM_ACTIVE 1
 #define HBA_PORT_DET_PRESENT 3
+
+#define HBA_PxCMD_ST    0x0001
+#define HBA_PxCMD_FRE   0x0010
+#define HBA_PxCMD_FR    0x4000
+#define HBA_PxCMD_CR    0x8000
 
 int AHCI_CheckPortType(HBAPort* port)
 {
@@ -51,21 +57,76 @@ void AHCI_ProbePorts(ahci* ahciPtr, HBAMemory* abar)
             {
                 case AHCI_DEV_SATA:
                     printf("Drive found: SATA\n");
+                    AHCI_PortRebase(ahciPtr, &ahciPtr->abar->ports[i], i);
                     break;
                 case AHCI_DEV_SATAPI:
-                    printf("Drive found: SATAPI\n");
+                    printf("(unsupported) Drive found: SATAPI\n");
                     break;
                 case AHCI_DEV_PM:
-                    printf("Drive found: PM\n");
+                    printf("(unsupported) Drive found: PM\n");
                     break;
                 case AHCI_DEV_SEMB:
-                    printf("Drive found: SEMB\n");
+                    printf("(unsupported) Drive found: SEMB\n");
                     break;
             }
         }
 
         portsImplemented >>= 1;
     }
+}
+
+void AHCI_StopCmd(HBAPort* port)
+{
+    port->cmdSts &= ~HBA_PxCMD_ST;
+    port->cmdSts &= ~HBA_PxCMD_FRE;
+
+    while (true)
+    {
+        if (port->cmdSts & HBA_PxCMD_FR) continue;
+        if (port->cmdSts & HBA_PxCMD_CR) continue;
+
+        break;
+    }
+}
+
+void AHCI_StartCmd(HBAPort* port)
+{
+    while (port->cmdSts & HBA_PxCMD_CR);
+
+    port->cmdSts |= HBA_PxCMD_FRE;
+    port->cmdSts |= HBA_PxCMD_ST;
+}
+
+void AHCI_PortRebase(ahci* ahciPtr, HBAPort* port, int portNumber)
+{
+    AHCI_StopCmd(port); // Stop command engine
+
+    // Wasted a little bit of memory
+    void* newBase = pmm_AllocatePage();
+    port->commandListBase = (uint32_t)(uint64_t)newBase;
+    port->commandListBaseUpper = (uint32_t)((uint64_t)newBase >> 32);
+    memset((void*)port->commandListBase, 0, 1024);
+
+    void* fisBase = pmm_AllocatePage();
+    port->fisBaseAddress = (uint32_t)(uint64_t)fisBase;
+    port->fisBaseAddressUpper = (uint32_t)((uint64_t)fisBase >> 32);
+    memset((void*)port->fisBaseAddress, 0, 256);
+
+    HBACommandHeader* cmdHeader = (HBACommandHeader*)((uint64_t)port->commandListBase + ((uint64_t)port->commandListBaseUpper << 32));
+
+    for (int i = 0; i < 32; i++)
+    {
+        cmdHeader[i].prdtLength = 8;
+
+        void* cmdTableAddress = pmm_AllocatePage();
+        uint64_t address = (uint64_t)cmdTableAddress + (i << 8);
+        cmdHeader[i].commandTableBaseAddress = (uint32_t)(uint64_t)address;
+        cmdHeader[i].commandTableBaseAddressUpper = (uint32_t)((uint64_t)address >> 32);
+        memset(cmdTableAddress, 0, 256);
+    }
+
+    AHCI_StartCmd(port); // Start command engine
+    ahciPtr->activePorts |= (1 << portNumber);
 }
 
 void InitializeAHCI(PCIDevice* device)
