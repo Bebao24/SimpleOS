@@ -1,144 +1,76 @@
 #include "pci.h"
-#include <system.h>
+#include <paging.h>
 #include <console.h>
-#include <util.h>
-#include <heap.h>
 #include <linked_list.h>
-#include <ahci.h>
 
 PCI* firstPCI;
 
-uint16_t PCIConfigReadWord(uint8_t bus, uint8_t slot, uint8_t function, uint8_t offset)
+void EnumerateFunction(uint64_t deviceAddress, uint64_t function)
 {
-    uint32_t address;
+    uint64_t offset = function << 12;
 
-    uint32_t lbus = (uint32_t)bus;
-    uint32_t lslot = (uint32_t)slot;
-    uint32_t lfunction = (uint32_t)function;
-    uint16_t tmp = 0;
+    uint64_t functionAddress = deviceAddress + offset;
+    paging_MapMemory((void*)functionAddress, (void*)functionAddress);
 
-    // Create configuration address as per Figure 1
-    address = (uint32_t)((lbus << 16) | (lslot << 11) |
-              (lfunction << 8) | (offset & 0xFC) | ((uint32_t)0x80000000));
+    PCIDevice* pciDevice = (PCIDevice*)functionAddress;
 
-    // Write out the address
-    x64_outl(PCI_CONFIG_ADDRESS, address);
+    if (pciDevice->DeviceId == 0) return;
+    if (pciDevice->DeviceId == 0xFFFF) return;
 
-    // Read in the data
-    tmp = (uint16_t)((x64_inl(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xFFFF);
-    return tmp;
+    PCI* target = (PCI*)LinkedListAllocate((void**)&firstPCI, sizeof(PCI));
+    target->VendorId = pciDevice->VendorId;
+    target->DeviceId = pciDevice->DeviceId;
+    target->Subclass = pciDevice->Subclass;
+    target->Class = pciDevice->Class;
 }
 
-int PCICheckDevice(uint8_t bus, uint8_t slot, uint8_t function)
+void EnumerateDevice(uint64_t busAddress, uint64_t device)
 {
-    uint16_t vendorId = PCIConfigReadWord(bus, slot, function, 0x00);
+    uint64_t offset = device << 15;
 
-    return !(vendorId == 0xFFFF || !vendorId);
-}
+    uint64_t deviceAddress = busAddress + offset;
+    paging_MapMemory((void*)deviceAddress, (void*)deviceAddress);
 
-void PCIGetDevice(PCIDevice* deviceOut, uint8_t bus, uint8_t slot, uint8_t function)
-{
-    deviceOut->bus = bus;
-    deviceOut->slot = slot;
-    deviceOut->function = function;
+    PCIDevice* pciDevice = (PCIDevice*)deviceAddress;
 
-    deviceOut->vendorId = PCIConfigReadWord(bus, slot, function, 0x00);
-    deviceOut->deviceId = PCIConfigReadWord(bus, slot, function, 0x02);
+    if (pciDevice->DeviceId == 0) return;
+    if (pciDevice->DeviceId == 0xFFFF) return;
 
-    deviceOut->command = PCIConfigReadWord(bus, slot, function, 0x04);
-    deviceOut->status = PCIConfigReadWord(bus, slot, function, 0x06);
-
-    // Since our read function reads 2 bytes, we need to export each byte
-    uint16_t revisionId_ProgIF = PCIConfigReadWord(bus, slot, function, 0x08);
-    deviceOut->revisionId = EXPORT_BYTE(revisionId_ProgIF, true);
-    deviceOut->progIF = EXPORT_BYTE(revisionId_ProgIF, false);
-
-    uint16_t subclass_class = PCIConfigReadWord(bus, slot, function, 0x0a);
-    deviceOut->subclass = EXPORT_BYTE(subclass_class, true);
-    deviceOut->class = EXPORT_BYTE(subclass_class, false);
-
-    uint16_t cacheLineSize_latencyTimer = PCIConfigReadWord(bus, slot, function, 0x0c);
-    deviceOut->cacheLineSize = EXPORT_BYTE(cacheLineSize_latencyTimer, true);
-    deviceOut->latencyTimer = EXPORT_BYTE(cacheLineSize_latencyTimer, false);
-
-    uint16_t headerType_BIST = PCIConfigReadWord(bus, slot, function, 0x0e);
-    deviceOut->headerType = EXPORT_BYTE(headerType_BIST, true);
-    deviceOut->BIST = EXPORT_BYTE(headerType_BIST, false);
-}
-
-void PCIGetGeneralDevice(PCIDevice* device, PCIGeneralDevice* deviceOut)
-{
-    uint8_t bus = device->bus;
-    uint8_t slot = device->slot;
-    uint8_t function = device->function;
-
-    for (int i = 0; i < 6; i++)
+    for (uint64_t function = 0; function < PCI_MAX_FUNCTIONS; function++)
     {
-        deviceOut->bar[i] = COMBINE_WORD(PCIConfigReadWord(bus, slot, function, 0x10 + 4 * i + 2), 
-        PCIConfigReadWord(bus, slot, function, 0x10 + 4 * i));
+        EnumerateFunction(deviceAddress, function);
     }
-
-    deviceOut->SubsystemVendorId = PCIConfigReadWord(bus, slot, function, 0x2C);
-    deviceOut->SubsystemId = PCIConfigReadWord(bus, slot, function, 0x2E);
-
-    deviceOut->ExpansionROMBaseAddress = COMBINE_WORD(PCIConfigReadWord(bus, slot, function, 0x30 + 2), 
-    PCIConfigReadWord(bus, slot, function, 0x30));
-
-    deviceOut->CapabilitiesPtr = EXPORT_BYTE(PCIConfigReadWord(bus, slot, function, 0x34), true);
-
-    uint16_t interruptLine_interruptPin = PCIConfigReadWord(bus, slot, function, 0x3C);
-    deviceOut->InterruptLine = EXPORT_BYTE(interruptLine_interruptPin, true);
-    deviceOut->InterruptPin = EXPORT_BYTE(interruptLine_interruptPin, false);
-
-    uint16_t minGrant_maxLatency = PCIConfigReadWord(bus, slot, function, 0x3E);
-    deviceOut->MinGrant = EXPORT_BYTE(minGrant_maxLatency, true);
-    deviceOut->MaxLatency = EXPORT_BYTE(minGrant_maxLatency, false);
 }
 
-void InitializePCI()
+void EnumerateBus(uint64_t baseAddress, uint64_t bus)
 {
-    PCIDevice* device = (PCIDevice*)malloc(sizeof(PCIDevice));
+    uint64_t offset = bus << 20;
 
-    for (uint16_t bus = 0; bus < PCI_MAX_BUSES; bus++)
+    uint64_t busAddress = baseAddress + offset;
+    paging_MapMemory((void*)busAddress, (void*)busAddress);
+
+    PCIDevice* pciDevice = (PCIDevice*)busAddress;
+
+    if (pciDevice->DeviceId == 0) return;
+    if (pciDevice->DeviceId == 0xFFFF) return;
+
+    for (uint64_t device = 0; device < PCI_MAX_DEVICES; device++)
     {
-        for (uint8_t slot = 0; slot < PCI_MAX_DEVICES; slot++)
+        EnumerateDevice(busAddress, device);
+    }
+}
+
+void InitializePCI(MCFGHeader* mcfg)
+{
+    int entries = (mcfg->header.Length - sizeof(MCFGHeader)) / sizeof(DeviceConfig);
+
+    for (int i = 0; i < entries; i++)
+    {
+        DeviceConfig* newDeviceConfig = (DeviceConfig*)((uint64_t)mcfg + sizeof(MCFGHeader) + (sizeof(DeviceConfig) * i));
+        
+        for (uint64_t bus = newDeviceConfig->StartBus; bus < newDeviceConfig->EndBus; bus++)
         {
-            for (uint8_t function = 0; function < PCI_MAX_FUNCTIONS; function++)
-            {
-                if (!PCICheckDevice(bus, slot, function))
-                {
-                    continue;
-                }
-
-                PCIGetDevice(device, bus, slot, function);
-
-                PCI* target = (PCI*)LinkedListAllocate((void**)(&firstPCI), sizeof(PCI));
-                target->bus = bus;
-                target->slot = slot;
-                target->function = function;
-
-                target->vendorId = device->vendorId;
-                target->deviceId = device->deviceId;
-                target->subclass = device->subclass;
-                target->class = device->class;
-
-                // Initialize PCI devices
-                switch (device->class)
-                {
-                    case 0x01: // Mass storage controller
-                        switch (device->subclass)
-                        {
-                            case 0x06: // Serial ATA
-                                switch (device->progIF)
-                                {
-                                    case 0x01: // AHCI 1.0
-                                        InitializeAHCI(device);
-                                }
-                        }
-                }
-            }
+            EnumerateBus(newDeviceConfig->PCIBaseAddress, bus);
         }
     }
-
-    free(device);
 }

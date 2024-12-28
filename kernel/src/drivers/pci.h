@@ -1,8 +1,5 @@
 #pragma once
-#include <stdint.h>
-
-#define PCI_CONFIG_ADDRESS 0xCF8
-#define PCI_CONFIG_DATA 0xCFC
+#include <acpi.h>
 
 #define PCI_MAX_BUSES 256
 #define PCI_MAX_DEVICES 32
@@ -10,35 +7,32 @@
 
 typedef struct
 {
-    uint8_t bus;
-    uint8_t slot;
-    uint8_t function;
-
-    uint16_t vendorId;
-    uint16_t deviceId;
-    uint16_t command;
-    uint16_t status;
-
-    uint8_t revisionId;
-    uint8_t progIF; // Program interface
-    uint8_t subclass;
-    uint8_t class;
-
-    uint8_t cacheLineSize;
-    uint8_t latencyTimer;
-    uint8_t headerType;
-    uint8_t BIST;
+    uint16_t VendorId;
+    uint16_t DeviceId;
+    uint16_t Command;
+    uint16_t Status;
+    uint8_t RevisionId;
+    uint8_t ProgIF; // Program interface
+    uint8_t Subclass;
+    uint8_t Class;
+    uint8_t CacheLineSize;
+    uint8_t LatencyTimer;
+    uint8_t HeaderType;
+    uint8_t BIST;    
 } PCIDevice;
 
 typedef struct
 {
+    PCIDevice deviceHeader;
     uint32_t bar[6];
-
     uint32_t CardBusCISPtr;
-    uint16_t SubsystemVendorId;
-    uint16_t SubsystemId;
+    uint16_t SubSystemVendorId;
+    uint16_t SubSystemId;
     uint32_t ExpansionROMBaseAddress;
     uint8_t CapabilitiesPtr;
+    uint8_t Reserved0;
+    uint16_t Reserved1;
+    uint32_t Reserved2;
     uint8_t InterruptLine;
     uint8_t InterruptPin;
     uint8_t MinGrant;
@@ -50,22 +44,10 @@ typedef struct PCI PCI;
 struct PCI
 {
     PCI* next;
-
-    uint8_t bus;
-    uint8_t slot;
-    uint8_t function;
-
-    uint16_t vendorId;
-    uint16_t deviceId;
-    uint8_t subclass;
-    uint8_t class;
+    uint16_t VendorId, DeviceId;
+    uint8_t Subclass, Class;
 };
 
 extern PCI* firstPCI;
 
-uint16_t PCIConfigReadWord(uint8_t bus, uint8_t slot, uint8_t function, uint8_t offset);
-int PCICheckDevice(uint8_t bus, uint8_t slot, uint8_t function);
-void PCIGetDevice(PCIDevice* deviceOut, uint8_t bus, uint8_t slot, uint8_t function);
-void PCIGetGeneralDevice(PCIDevice* device, PCIGeneralDevice* deviceOut);
-
-void InitializePCI();
+void InitializePCI(MCFGHeader* mcfg);

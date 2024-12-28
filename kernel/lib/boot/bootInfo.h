@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <efiMemory.h>
+#include <acpi.h>
 
 typedef struct
 {
@@ -32,4 +33,5 @@ typedef struct
 	EFI_MEMORY_DESCRIPTOR* mMap;
 	uint64_t mMapSize;
 	uint64_t mDescriptorSize;
+	RSDP2* rsdp;
 } BootInfo;

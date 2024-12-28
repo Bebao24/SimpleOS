@@ -14,6 +14,7 @@
 #include <system.h>
 #include <keyboard.h>
 #include <pci.h>
+#include <acpi.h>
 
 extern uint64_t _KernelStart;
 extern uint64_t _KernelEnd;
@@ -65,14 +66,24 @@ void kmain(BootInfo* bootInfo)
     PIC_Mask(0);
     InitializeKeyboard();
 
-    InitializePCI();
+    SDTHeader* xsdt = (SDTHeader*)bootInfo->rsdp->XSDTAddress;
 
-    // Print device info
+    MCFGHeader* mcfg = (MCFGHeader*)FindTable(xsdt, (char*)"MCFG");
+
+    for (int i = 0; i < 4; i++)
+    {
+        putc(mcfg->header.Signature[i]);
+    }
+    putc('\n');
+
+    InitializePCI(mcfg);
+
+    // Print PCI device info
     PCI* browse = firstPCI;
     while (browse)
     {
-        printf("Vendor Id: %x  Device Id: %x  Subclass: %x  Class: %x\n", 
-        browse->vendorId, browse->deviceId, browse->subclass, browse->class);
+        printf("Vendor Id: %x  Device Id: %x  Subclass: %x Class: %x\n", browse->VendorId, browse->DeviceId,
+        browse->Subclass, browse->Class);
 
         browse = browse->next;
     }
